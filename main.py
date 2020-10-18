@@ -3,6 +3,7 @@
 
 import requests
 from bs4 import BeautifulSoup
+from bs4 import element
 import hashlib
 from urllib.parse import urlparse
 import threading
@@ -33,7 +34,13 @@ def get_hardware_spec_urls():
     for link in links:
         urls.append("https://01.org" + link.get('href'))
 
-    return urls
+    # get the title of the links
+    titles = []
+    for link in links:
+        titles.append(link.get_text().strip())
+
+
+    return urls, titles
 
 def get_pdf_urls(mainpage_url):
     response = requests.get(mainpage_url)
@@ -56,37 +63,36 @@ def sanitize_path(fpath):
     path = str(urlparse(fpath).path)
     fpath_correct = domain + path
 
-    return "Data-Dump/" + fpath_correct
+    return fpath_correct
 
 def make_dir_if_not_exists(d):
     if not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
 
-def download_url_pdfs(urls):
+def download_url_pdfs(urls, title):
     for url in urls:
         # get the content
         response = requests.get(url)
         content = response.content
 
         # get the location of where the file should go
-        url_prefix_trimmed = remove_prefix(url, "https://01.org/")
-        file_path = sanitize_path(url_prefix_trimmed)
-        dir_path = os.path.split(file_path)[0]
+        docu_name = os.path.split(remove_prefix(url, "https://01.org/"))[1]
 
         # create the directory if it does not exist
-        make_dir_if_not_exists(dir_path)
+        make_dir_if_not_exists(sanitize_path("Data-Dump/" + title))
 
         # open the file and write in that dir
-        f = open(file_path, "wb")
+        f = open(sanitize_path("Data-Dump/" + title + "/" + docu_name), "wb")
         f.write(content)
         f.close()
 
 
 if __name__ == "__main__":
-    hardware_spec_urls = get_hardware_spec_urls()
-    for link in hardware_spec_urls:
-        if link != None:
-            pdf_urls = get_pdf_urls(link)
+    hardware_spec_urls, titles = get_hardware_spec_urls()
+    print(titles)
+    for x in range(len(hardware_spec_urls)):
+        if hardware_spec_urls[x] != None:
+            pdf_urls = get_pdf_urls(hardware_spec_urls[x])
             print("* " + str(pdf_urls) + "\n")
             print("[+] Downloading PDF's...")
-            download_url_pdfs(pdf_urls)
+            download_url_pdfs(pdf_urls, titles[x])
